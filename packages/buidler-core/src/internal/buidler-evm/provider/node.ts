@@ -25,6 +25,7 @@ import Trie from "merkle-patricia-tree/secure";
 import { promisify } from "util";
 
 import { BUIDLEREVM_DEFAULT_GAS_PRICE } from "../../core/config/default-config";
+import { string } from "../../core/params/argumentTypes";
 import { getUserConfigPath } from "../../core/project-structure";
 import {
   dateToTimestampSeconds,
@@ -91,6 +92,7 @@ export interface TransactionParams {
   nonce: BN;
 }
 
+<<<<<<< HEAD
 export interface FilterParams {
   fromBlock: BN;
   toBlock: BN;
@@ -104,6 +106,9 @@ export interface TxReceipt {
   bitvector: Buffer;
   logs: RpcLogOutput[];
 }
+=======
+export class TransactionExecutionError extends Error { }
+>>>>>>> 342de1b0eb7e37ffd1b8bf8ec1e058aba00d00a9
 
 export interface TxBlockResult {
   receipt: TxReceipt;
@@ -240,6 +245,7 @@ export class BuidlerNode extends EventEmitter {
   private readonly _stateManager: PStateManager;
 
   private readonly _accountPrivateKeys: Map<string, Buffer> = new Map();
+<<<<<<< HEAD
 
   private _blockTimeOffsetSeconds: BN = new BN(0);
   private _nextBlockTimestamp: BN = new BN(0);
@@ -256,6 +262,18 @@ export class BuidlerNode extends EventEmitter {
 
   private readonly _vmTracer: VMTracer;
   private readonly _vmTraceDecoder?: VmTraceDecoder;
+=======
+  private readonly _impersonatedAccounts: Map<string, any> = new Map();
+  private readonly _transactionByHash: Map<string, Transaction> = new Map();
+  private readonly _transactionHashToBlockHash: Map<string, string> = new Map();
+  private readonly _blockHashToTxBlockResults: Map<
+    string,
+    TxBlockResult[]
+  > = new Map();
+  private readonly _blockHashToTotalDifficulty: Map<string, BN> = new Map();
+  private readonly _stackTracesEnabled: boolean = false;
+  private readonly _vmTracer?: VMTracer;
+>>>>>>> 342de1b0eb7e37ffd1b8bf8ec1e058aba00d00a9
   private readonly _solidityTracer?: SolidityTracer;
   private readonly _consoleLogger: ConsoleLogger = new ConsoleLogger();
   private _failedStackTraces = 0;
@@ -350,6 +368,7 @@ export class BuidlerNode extends EventEmitter {
     return tx;
   }
 
+  // Why this returns a Promise?
   public async _getFakeTransaction(
     txParams: TransactionParams
   ): Promise<Transaction> {
@@ -358,6 +377,7 @@ export class BuidlerNode extends EventEmitter {
 
   public async runTransactionInNewBlock(
     tx: Transaction
+<<<<<<< HEAD
   ): Promise<{
     trace: MessageTrace;
     block: Block;
@@ -366,6 +386,9 @@ export class BuidlerNode extends EventEmitter {
     consoleLogMessages: string[];
   }> {
     await this._validateTransaction(tx);
+=======
+  ): Promise<RunBlockResult> {
+>>>>>>> 342de1b0eb7e37ffd1b8bf8ec1e058aba00d00a9
     await this._saveTransactionAsReceived(tx);
 
     const [
@@ -714,6 +737,7 @@ export class BuidlerNode extends EventEmitter {
     hash: Buffer
   ): Promise<Transaction | undefined> {
     const tx = this._transactionByHash.get(bufferToHex(hash));
+
     if (tx !== undefined && (await this._transactionWasSuccessful(tx))) {
       return tx;
     }
@@ -753,6 +777,7 @@ export class BuidlerNode extends EventEmitter {
     return this._failedStackTraces;
   }
 
+<<<<<<< HEAD
   public async takeSnapshot(): Promise<number> {
     const id = this._nextSnapshotId;
 
@@ -995,6 +1020,15 @@ export class BuidlerNode extends EventEmitter {
     }
 
     return undefined;
+=======
+  public impersonateAccount(account: Buffer): boolean {
+    this._impersonatedAccounts.set(bufferToHex(account), true);
+    return true;
+  }
+
+  public isImpersonatedAccount(account: Buffer): boolean {
+    return this._impersonatedAccounts.has(bufferToHex(account));
+>>>>>>> 342de1b0eb7e37ffd1b8bf8ec1e058aba00d00a9
   }
 
   private _initLocalAccounts(localAccounts: Buffer[]) {
@@ -1148,6 +1182,7 @@ export class BuidlerNode extends EventEmitter {
   }
 
   private async _saveTransactionAsReceived(tx: Transaction) {
+<<<<<<< HEAD
     this._transactionByHash.set(bufferToHex(tx.hash(true)), tx);
     this._filters.forEach((filter) => {
       if (filter.type === Type.PENDING_TRANSACTION_SUBSCRIPTION) {
@@ -1160,6 +1195,10 @@ export class BuidlerNode extends EventEmitter {
         filter.hashes.push(hash);
       }
     });
+=======
+    const isFake = this._isFakeTransaction(tx);
+    this._transactionByHash.set(bufferToHex(tx.hash(!isFake)), tx);
+>>>>>>> 342de1b0eb7e37ffd1b8bf8ec1e058aba00d00a9
   }
 
   private async _getLocalAccountPrivateKey(sender: Buffer): Promise<Buffer> {
@@ -1293,14 +1332,17 @@ export class BuidlerNode extends EventEmitter {
     tx: Transaction,
     block: Block
   ) {
+    const isFake = this._isFakeTransaction(tx);
+
     this._transactionHashToBlockHash.set(
-      bufferToHex(tx.hash(true)),
+      bufferToHex(tx.hash(!isFake)),
       bufferToHex(block.hash())
     );
   }
 
   private async _transactionWasSuccessful(tx: Transaction): Promise<boolean> {
-    return this._transactionHashToBlockHash.has(bufferToHex(tx.hash(true)));
+    const isFake = this._isFakeTransaction(tx);
+    return this._transactionHashToBlockHash.has(bufferToHex(tx.hash(!isFake)));
   }
 
   private async _timestampClashesWithPreviousBlockOne(
@@ -1325,8 +1367,9 @@ export class BuidlerNode extends EventEmitter {
   private async _validateTransaction(tx: Transaction) {
     // Geth throws this error if a tx is sent twice
     if (await this._transactionWasSuccessful(tx)) {
+      const isFake = this._isFakeTransaction(tx);
       throw new InvalidInputError(
-        `known transaction: ${bufferToHex(tx.hash(true)).toString()}`
+        `known transaction: ${bufferToHex(tx.hash(!isFake)).toString()}`
       );
     }
 
@@ -1596,5 +1639,9 @@ If you are using a wallet or dapp, try resetting your wallet's accounts.`
       result,
       filterId,
     });
+  }
+
+  private _isFakeTransaction(tx: Transaction): boolean {
+    return tx instanceof FakeTransaction;
   }
 }

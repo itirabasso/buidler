@@ -241,6 +241,11 @@ export class EthModule {
           ...this._sendTransactionParams(params)
         );
 
+      case "eth_sendFakeTransaction":
+        return this._sendFakeTransactionAction(
+          ...this._sendTransactionParams(params)
+        );
+
       case "eth_sign":
         return this._signAction(...this._signParams(params));
 
@@ -880,15 +885,32 @@ export class EthModule {
   }
 
   private async _sendTransactionAction(
-    transactionRequest: RpcTransactionRequest
+    transactionRequest: RpcTransactionRequest,
+    isFake: boolean = false
   ): Promise<string> {
     const txParams = await this._rpcTransactionRequestToNodeTransactionParams(
       transactionRequest
     );
+    isFake = this._node.isImpersonatedAccount(txParams.from) || isFake;
 
+    const tx = isFake
+      ? await this._node._getFakeTransaction(txParams)
+      : await this._node.getSignedTransaction(txParams);
+
+<<<<<<< HEAD
     const tx = await this._node.getSignedTransaction(txParams);
 
     return this._sendTransactionAndReturnHash(tx);
+=======
+    await this._node.runTransactionInNewBlock(tx);
+    return bufferToRpcData(tx.hash(!isFake));
+  }
+
+  private async _sendFakeTransactionAction(
+    transactionRequest: RpcTransactionRequest
+  ): Promise<string> {
+    return this._sendTransactionAction(transactionRequest, true);
+>>>>>>> 342de1b0eb7e37ffd1b8bf8ec1e058aba00d00a9
   }
 
   // eth_sign

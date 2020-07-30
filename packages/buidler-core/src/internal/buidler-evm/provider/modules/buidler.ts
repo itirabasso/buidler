@@ -1,5 +1,5 @@
 import { MethodNotFoundError } from "../errors";
-import { validateParams } from "../input";
+import { optionalBlockTag, rpcAddress, validateParams } from "../input";
 import { BuidlerNode } from "../node";
 
 // tslint:disable only-buidler-error
@@ -16,6 +16,11 @@ export class BuidlerModule {
         return this._getStackTraceFailuresCountAction(
           ...this._getStackTraceFailuresCountParams(params)
         );
+
+      case "buidler_impersonateAccount":
+        return this._impersonateAccountAction(
+          this._impersonateAccountParams(params)
+        );
     }
 
     throw new MethodNotFoundError(`Method ${method} not found`);
@@ -29,5 +34,17 @@ export class BuidlerModule {
 
   private async _getStackTraceFailuresCountAction(): Promise<number> {
     return this._node.getStackTraceFailuresCount();
+  }
+
+  // buidler_impersonateAccount
+
+  // should return something? throw on re-impersionation cases?
+  private _impersonateAccountAction(account: Buffer): boolean {
+    return this._node.impersonateAccount(account);
+  }
+
+  private _impersonateAccountParams(params: any[]): Buffer {
+    const [account] = validateParams(params, rpcAddress);
+    return account;
   }
 }
